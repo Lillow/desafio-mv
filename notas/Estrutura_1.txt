@@ -1,0 +1,21 @@
+src/main/java
+└── br/com/desafio/financeiro/domain
+    ├── entity
+    │   ├── base
+    │   │   └── BaseEntity.java        
+	│   ├─ cliente/
+	│   │   ├─ Cliente.java        
+	│   │   ├─ ClientePF.java
+	│   │   └─ ClientePJ.java
+    │   ├── Cliente.java               
+    │   ├── Endereco.java
+    │   ├── Conta.java
+    │   ├── Movimentacao.java
+    │   ├── HistMovimentacao.java
+    │   └── TabelaPrecoFaixa.java
+    └── enums
+        ├── TipoPessoa.java
+        ├── TipoConta.java
+        ├── StatusConta.java
+        ├── TipoMovimentacao.java
+        └── StatusMovimentacao.java

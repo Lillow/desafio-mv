@@ -1,0 +1,75 @@
+erDiagram
+    CLIENTE {
+      NUMBER id PK
+      VARCHAR2 nome
+      VARCHAR2 tipo  "PF|PJ"
+      VARCHAR2 cpf   "único, nulo se PJ"
+      VARCHAR2 cnpj  "único, nulo se PF"
+      VARCHAR2 telefone
+      VARCHAR2 email
+      DATE data_cadastro
+      CHAR ativo "S|N"
+    }
+
+    ENDERECO {
+      NUMBER id PK
+      NUMBER cliente_id FK
+      VARCHAR2 rua
+      VARCHAR2 numero
+      VARCHAR2 complemento
+      VARCHAR2 bairro
+      VARCHAR2 cidade
+      CHAR uf
+      VARCHAR2 cep
+      DATE vigente_de
+      DATE vigente_ate "nulo = atual"
+    }
+
+    CONTA {
+      NUMBER id PK
+      NUMBER cliente_id FK
+      VARCHAR2 banco
+      VARCHAR2 agencia
+      VARCHAR2 numero
+      VARCHAR2 digito
+      CHAR ativa "S|N"
+      CHAR excluida_logica "S|N"
+      DATE data_exclusao
+    }
+
+    MOVIMENTACAO {
+      NUMBER id PK
+      NUMBER conta_id FK
+      VARCHAR2 tipo "CREDITO|DEBITO"
+      NUMBER valor "15,2"
+      DATE data_mov
+      VARCHAR2 descricao
+      VARCHAR2 integracao_id "id externo opcional"
+      DATE criado_em
+    }
+
+    HIST_MOVIMENTACAO {
+      NUMBER id PK
+      NUMBER movimentacao_id FK
+      VARCHAR2 acao "INS|UPD|DEL"
+      DATE audit_at
+      VARCHAR2 audit_user
+      NUMBER valor_antigo "15,2"
+      VARCHAR2 tipo_antigo
+      DATE data_mov_antiga
+    }
+
+    TABELA_PRECO_FAIXA {
+      NUMBER id PK
+      NUMBER faixa_min
+      NUMBER faixa_max "nulo = infinito"
+      NUMBER preco_por_mov "15,2"
+      CHAR ativo "S|N"
+      DATE vigente_de
+      DATE vigente_ate
+    }
+
+    CLIENTE ||--o{ ENDERECO : "possui"
+    CLIENTE ||--o{ CONTA : "possui"
+    CONTA ||--o{ MOVIMENTACAO : "gera"
+    MOVIMENTACAO ||--o{ HIST_MOVIMENTACAO : "audita"

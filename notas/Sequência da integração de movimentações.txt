@@ -1,0 +1,18 @@
+sequenceDiagram
+  participant IF as Instituição Financeira
+  participant API as XPTO API (/integracoes/movimentacoes)
+  participant SVC as MovimentacaoService
+  participant REP as Repositories
+  participant DB as Oracle (PL/SQL)
+
+  IF->>API: POST movimentação {banco, agencia, conta, tipo, valor, data}
+  API->>SVC: validar & transformar DTO
+  SVC->>REP: buscar Conta por (banco, agencia, numero)
+  REP-->>SVC: Conta encontrada + Cliente
+  SVC->>REP: salvar Movimentacao (CREDITO/DEBITO)
+  REP-->>SVC: Movimentacao persistida
+  Note over DB: Trigger TRG_MOV_AUDIT registra histórico
+  SVC->>DB: opcional: recalcular saldos agregados/visão
+  DB-->>SVC: OK
+  SVC-->>API: sucesso + id da movimentação
+  API-->>IF: 200 OK

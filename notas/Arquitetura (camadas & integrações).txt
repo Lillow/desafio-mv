@@ -1,0 +1,22 @@
+flowchart LR
+  ext[Instituição Financeira] -- HTTP/JSON --> api[/API REST Spring Boot/]
+
+  subgraph App[XPTO - Backend]
+    direction TB
+    ctrl[Controllers\n(REST, validação entrada)]
+    svc[Services\n(regras de negócio,\nStrategy de tarifação,\npolíticas de manutenção)]
+    repo[Repositories\n(Spring Data JPA)]
+    mapper[Mappers (MapStruct)]
+    val[Bean Validation\n(JSR 380)]
+  end
+
+  api --> ctrl --> svc --> repo --> db[(Oracle)]
+  mapper -.-> ctrl
+  val -.-> ctrl
+
+  subgraph DB[Oracle]
+    pl[PL/SQL: Function calcular_receita_periodo()\nTrigger TRG_MOV_AUDIT\nViews de relatório]
+  end
+
+  repo --> pl
+  db --- DB
