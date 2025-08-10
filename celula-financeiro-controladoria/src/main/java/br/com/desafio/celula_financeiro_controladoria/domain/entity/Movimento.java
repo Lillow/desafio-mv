@@ -3,6 +3,7 @@ package br.com.desafio.celula_financeiro_controladoria.domain.entity;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import br.com.desafio.celula_financeiro_controladoria.domain.dto.MovimentoDTO;
 import br.com.desafio.celula_financeiro_controladoria.domain.dto.base.BaseEntityDTO;
 import br.com.desafio.celula_financeiro_controladoria.domain.entity.base.BaseEntity;
 import br.com.desafio.celula_financeiro_controladoria.domain.enums.TipoMovimento;
@@ -45,8 +46,16 @@ public class Movimento extends BaseEntity { // supondo que vc já tem createdAt/
     private LocalDateTime dataHora;
 
     @Override
-    public BaseEntityDTO toDTO() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'toDTO'");
+    public MovimentoDTO toDTO() {
+        MovimentoDTO dto = new MovimentoDTO();
+        super.toDTO(dto);
+
+        dto.setTipo(this.getTipo());
+        dto.setValor(this.getValor());
+        dto.setDescricao(this.getDescricao());
+        dto.setOrigem(this.getOrigem());
+        dto.setDataHora(this.getDataHora());
+
+        return dto;
     }
 }

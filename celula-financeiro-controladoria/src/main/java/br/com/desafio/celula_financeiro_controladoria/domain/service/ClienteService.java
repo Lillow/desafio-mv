@@ -1,5 +1,6 @@
 package br.com.desafio.celula_financeiro_controladoria.domain.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import br.com.desafio.celula_financeiro_controladoria.domain.entity.cliente.Cliente;
@@ -10,11 +11,13 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class ClienteService {
-    private final ClienteRepository clienteRepo;
+
+    @Autowired
+    private ClienteRepository clienteRepo;
 
     @Transactional
     public Cliente atualizar(Cliente in) {
-        var db = clienteRepo.findById(in.getId())
+        Cliente db = clienteRepo.findById(in.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado"));
         // imutáveis
         // if (db instanceof ClientePF pfDb && in instanceof ClientePF pfIn) {

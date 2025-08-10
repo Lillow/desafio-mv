@@ -1,99 +1,111 @@
 package br.com.desafio.celula_financeiro_controladoria.domain.service;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import br.com.desafio.celula_financeiro_controladoria.domain.dto.ReceitaClienteDTO;
-import br.com.desafio.celula_financeiro_controladoria.domain.dto.RelatorioSaldoDTO;
-import br.com.desafio.celula_financeiro_controladoria.domain.entity.Endereco;
-import br.com.desafio.celula_financeiro_controladoria.domain.entity.Movimento;
+import br.com.desafio.celula_financeiro_controladoria.domain.dto.ItemReceitaClienteDTO;
+import br.com.desafio.celula_financeiro_controladoria.domain.dto.RelatorioClienteDTO;
+import br.com.desafio.celula_financeiro_controladoria.domain.dto.RelatorioReceitaDTO;
+import br.com.desafio.celula_financeiro_controladoria.domain.entity.Conta;
 import br.com.desafio.celula_financeiro_controladoria.domain.entity.cliente.Cliente;
-import br.com.desafio.celula_financeiro_controladoria.domain.enums.TipoMovimento;
 import br.com.desafio.celula_financeiro_controladoria.domain.repository.MovimentoRepository;
 import br.com.desafio.celula_financeiro_controladoria.domain.repository.cliente.ClienteRepository;
-import lombok.RequiredArgsConstructor;
+import jakarta.persistence.EntityNotFoundException;
 
 @Service
-@RequiredArgsConstructor
 public class RelatorioService {
 
-    private final MovimentoRepository movRepo;
-    private final ClienteRepository clienteRepo; // supondo generico
-    private final TarifaService tarifaService;
+    @Autowired
+    private ClienteRepository clienteRepository;
 
-    // período de 30 dias a partir da data de cadastro (para cobrança “mensal” por
-    // cliente)
-    public RelatorioSaldoDTO saldoCliente(Long clienteId, LocalDate ini, LocalDate fim) {
-        Cliente cliente = clienteRepo.findById(clienteId)
-                .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado"));
+    @Autowired
+    private MovimentoRepository movimentoRepository;
 
-        LocalDateTime dtIni = (ini != null ? ini
-                : LocalDate.ofInstant(cliente.getCreatedAt(), java.time.ZoneId.systemDefault())).atStartOfDay();
-        LocalDateTime dtFim = (fim != null ? fim : LocalDate.now()).atTime(23, 59, 59);
-
-        var movs = movRepo.findByClienteAndPeriodo(clienteId, dtIni, dtFim);
-
-        long qtdCred = movs.stream().filter(m -> m.getTipo() == TipoMovimento.CREDITO).count();
-        long qtdDeb = movs.stream().filter(m -> m.getTipo() == TipoMovimento.DEBITO).count();
-        long total = movs.size();
-
-        // saldo inicial = saldo no início do período (simplificação: recalcular a
-        // partir de 0, ou se vc guarda snapshot, use-o)
-        // aqui, simples: pega saldo atual do somatório até dtIni exclusive
-        BigDecimal saldoInicial = calcularSaldoAte(clienteId, dtIni);
-        BigDecimal saldoAtual = saldoInicial
-                .add(movs.stream().filter(m -> m.getTipo() == TipoMovimento.CREDITO)
-                        .map(Movimento::getValor).reduce(BigDecimal.ZERO, BigDecimal::add))
-                .subtract(movs.stream().filter(m -> m.getTipo() == TipoMovimento.DEBITO)
-                        .map(Movimento::getValor).reduce(BigDecimal.ZERO, BigDecimal::add));
-
-        BigDecimal valorPago = tarifaService.calcularValorTotal(total);
-
-        RelatorioSaldoDTO dto = new RelatorioSaldoDTO();
-        dto.setClienteId(cliente.getId());
-        dto.setClienteNome(cliente.getNome());
-        dto.setClienteDesde(
-                LocalDateTime.ofInstant(cliente.getCreatedAt(), java.time.ZoneId.systemDefault()).toLocalDate());
-        dto.setEndereco(Endereco.from(cliente.getEndereco()));
-        dto.setQtdCredito(qtdCred);
-        dto.setQtdDebito(qtdDeb);
-        dto.setTotalMovs(total);
-        dto.setValorPagoMovimentacoes(valorPago);
-        dto.setSaldoInicial(saldoInicial);
-        dto.setSaldoAtual(saldoAtual);
-        dto.setDataRefInicio(dtIni.toLocalDate());
-        dto.setDataRefFim(dtFim.toLocalDate());
-        return dto;
+    // preço por movimentação conforme volume do cliente no período
+    private BigDecimal precoPorMov(long qtd) {
+        if (qtd <= 10)
+            return new BigDecimal("1.00");
+        if (qtd <= 20)
+            return new BigDecimal("0.75");
+        return new BigDecimal("0.50");
     }
 
-    public List<ReceitaClienteDTO> receitaPorPeriodo(LocalDate ini, LocalDate fim) {
-        LocalDateTime dtIni = ini.atStartOfDay();
-        LocalDateTime dtFim = fim.atTime(23, 59, 59);
-        // busque todos os clientes e monte agregados (para performance, dá pra fazer
-        // query nativa agrupando)
-        return clienteRepo.findAll().stream().map(c -> {
-            long qtd = movRepo.countByClienteNoPeriodo(c.getId(), dtIni, dtFim);
-            BigDecimal valor = tarifaService.calcularValorTotal(qtd);
-            var r = new ReceitaClienteDTO();
-            r.setClienteId(c.getId());
-            r.setClienteNome(c.getNome());
-            r.setQuantidadeMovs(qtd);
-            r.setValorTarifado(valor);
-            return r;
-        }).toList();
-    }
+    public RelatorioClienteDTO saldoCliente(Long clienteId) {
+        Cliente cliente = clienteRepository.findById(clienteId).orElseThrow(EntityNotFoundException::new);
 
-    private BigDecimal calcularSaldoAte(Long clienteId, LocalDateTime ate) {
-        // simplificação: carrega movimentos do cliente até ate e aplica
-        var movs = movRepo.findByClienteAndPeriodo(clienteId, LocalDateTime.MIN, ate.minusSeconds(1));
-        BigDecimal saldo = BigDecimal.ZERO;
-        for (var m : movs) {
-            saldo = (m.getTipo() == TipoMovimento.CREDITO) ? saldo.add(m.getValor()) : saldo.subtract(m.getValor());
+        BigDecimal cred = BigDecimal.ZERO;
+        BigDecimal deb = BigDecimal.ZERO;
+        List<Conta> contas = cliente.getContas();
+        for (Conta c : contas) {
+            cred = cred.add(movimentoRepository.sumCreditosByConta(c.getId()));
+            deb = deb.add(movimentoRepository.sumDebitosByConta(c.getId()));
         }
-        return saldo.max(BigDecimal.ZERO); // se quiser não negativo
+        BigDecimal saldoInicial = BigDecimal.ZERO;
+        BigDecimal saldoAtual = cred.subtract(deb); // ou somar saldos das contas, se preferir
+
+        long qtd = 0;
+        for (Conta c : contas)
+            qtd += movimentoRepository.countByContaIdAndDataHoraBetween(c.getId(), OffsetDateTime.MIN,
+                    OffsetDateTime.now());
+        BigDecimal valorPago = precoPorMov(qtd).multiply(BigDecimal.valueOf(qtd));
+
+        return RelatorioClienteDTO.from(cliente, cred, deb, qtd, valorPago, saldoInicial, saldoAtual, null, null);
+    }
+
+    public RelatorioClienteDTO saldoClientePeriodo(Long clienteId, OffsetDateTime ini, OffsetDateTime fim) {
+        var cliente = clienteRepository.findById(clienteId).orElseThrow(EntityNotFoundException::new);
+        BigDecimal cred = BigDecimal.ZERO, deb = BigDecimal.ZERO;
+        long qtd = 0;
+        for (var c : cliente.getContas()) {
+            cred = cred.add(movimentoRepository.sumCreditosByContaAndPeriodo(c.getId(), ini, fim));
+            deb = deb.add(movimentoRepository.sumDebitosByContaAndPeriodo(c.getId(), ini, fim));
+            qtd += movimentoRepository.countByContaIdAndDataHoraBetween(c.getId(), ini, fim);
+        }
+        BigDecimal valorPago = precoPorMov(qtd).multiply(BigDecimal.valueOf(qtd));
+        BigDecimal saldoInicial = BigDecimal.ZERO; // pode-se calcular trazendo acumulado anterior
+        BigDecimal saldoAtual = cred.subtract(deb);
+
+        return RelatorioClienteDTO.from(cliente, cred, deb, qtd, valorPago, saldoInicial, saldoAtual, ini, fim);
+    }
+
+    public List<RelatorioClienteDTO.ResumoSaldoClienteDTO> saldosTodosClientesNaData(OffsetDateTime data) {
+        var all = clienteRepository.findAll();
+        var out = new ArrayList<RelatorioClienteDTO.ResumoSaldoClienteDTO>();
+        for (Cliente cli : all) {
+            BigDecimal cred = BigDecimal.ZERO;
+            BigDecimal deb = BigDecimal.ZERO;
+            for (var c : cli.getContas()) {
+                cred = cred.add(movimentoRepository.sumCreditosByContaAndPeriodo(c.getId(), OffsetDateTime.MIN, data));
+                deb = deb.add(movimentoRepository.sumDebitosByContaAndPeriodo(c.getId(), OffsetDateTime.MIN, data));
+            }
+            out.add(new RelatorioClienteDTO.ResumoSaldoClienteDTO(cli.getId(), cli.getNome(),
+                    java.time.LocalDateTime.ofInstant(cli.getCreatedAt(), java.time.ZoneId.systemDefault())
+                            .toLocalDate(),
+                    cred.subtract(deb)));
+        }
+        return out;
+    }
+
+    public RelatorioReceitaDTO receitaPeriodo(OffsetDateTime ini, OffsetDateTime fim) {
+        var dados = movimentoRepository.countPorClienteNoPeriodo(ini, fim);
+        List<ItemReceitaClienteDTO> itens = new ArrayList<>();
+        BigDecimal total = BigDecimal.ZERO;
+
+        for (Object[] row : dados) {
+            Long clienteId = (Long) row[0];
+            long qtd = (long) row[1];
+            var cliente = clienteRepository.findById(clienteId).orElseThrow(EntityNotFoundException::new);
+            BigDecimal unit = precoPorMov(qtd);
+            BigDecimal valor = unit.multiply(BigDecimal.valueOf(qtd));
+            total = total.add(valor);
+
+            itens.add(new ItemReceitaClienteDTO(cliente.getId(), cliente.getNome(), qtd, valor));
+        }
+        return new RelatorioReceitaDTO(ini, fim, itens, total);
     }
 }

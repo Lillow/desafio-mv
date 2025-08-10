@@ -1,51 +1,43 @@
 package br.com.desafio.celula_financeiro_controladoria.domain.service;
 
-import java.util.List;
-
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import br.com.desafio.celula_financeiro_controladoria.domain.entity.Conta;
 import br.com.desafio.celula_financeiro_controladoria.domain.repository.ContaRepository;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
-import lombok.RequiredArgsConstructor;
 
 @Service
-@RequiredArgsConstructor
 public class ContaService {
 
-    private final ContaRepository contaRepo;
+    @Autowired
+    private ContaRepository contaRepository;
 
     @Transactional
-    public Conta criar(Conta c) {
-        return contaRepo.save(c);
+    public Conta criar(Conta conta) {
+        conta.setAtivo(true);
+        return contaRepository.save(conta);
     }
 
     @Transactional
-    public Conta atualizar(Conta atualizada) {
-        Conta db = contaRepo.findById(atualizada.getId())
-                .orElseThrow(() -> new IllegalArgumentException("Conta não encontrada"));
-        // regra: se existir movimentação associada, não permitir alteração de campos
-        // sensíveis
-        if (!db.getMovimentos().isEmpty()) {
-            // permitir talves apenas status; negar agência/numero/documento/tipoConta
-            db.setStatus(atualizada.getStatus());
-            return db;
+    public Conta atualizar(Long id, Conta dados) {
+        Conta conta = contaRepository.findById(id).orElseThrow(EntityNotFoundException::new);
+        if (contaRepository.existsMovimentoByContaId(id)) {
+            throw new IllegalStateException("Conta possui movimentações e não pode ser alterada.");
         }
-        db.setAgencia(atualizada.getAgencia());
-        db.setNumero(atualizada.getNumero());
-        db.setDocumento(atualizada.getDocumento());
-        db.setTipoConta(atualizada.getTipoConta());
-        db.setStatus(atualizada.getStatus());
-        return db;
+        conta.setAgencia(dados.getAgencia());
+        conta.setNumero(dados.getNumero());
+        conta.setDocumento(dados.getDocumento());
+        conta.setTipoConta(dados.getTipoConta());
+        // saldo e status podem ter regras próprias; ajuste se necessário
+        return contaRepository.save(conta);
     }
 
     @Transactional
-    public void excluirLogicamente(Long id) {
-        // @SQLDelete já faz ativo=false
-        contaRepo.deleteById(id);
-    }
-
-    public List<Conta> listarDoCliente(Long clienteId) {
-        return contaRepo.findByClienteId(clienteId);
+    public void excluirLogico(Long id) {
+        Conta conta = contaRepository.findById(id).orElseThrow(EntityNotFoundException::new);
+        conta.setAtivo(false);
+        contaRepository.save(conta);
     }
 }

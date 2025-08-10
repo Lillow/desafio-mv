@@ -1,16 +1,19 @@
 package br.com.desafio.celula_financeiro_controladoria.domain.entity.cliente;
 
+import java.util.List;
+
 import br.com.desafio.celula_financeiro_controladoria.domain.dto.ClienteDTO;
+import br.com.desafio.celula_financeiro_controladoria.domain.entity.Conta;
 import br.com.desafio.celula_financeiro_controladoria.domain.entity.Endereco;
 import br.com.desafio.celula_financeiro_controladoria.domain.entity.base.BaseEntity;
 import br.com.desafio.celula_financeiro_controladoria.domain.enums.TipoPessoa;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Inheritance;
 import jakarta.persistence.InheritanceType;
 import jakarta.persistence.OneToOne;
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.FetchType;
 import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -30,6 +33,8 @@ public abstract class Cliente extends BaseEntity {
 
         @Column(name = "TELEFONE", length = 20)
         private String telefone;
+
+        private List<Conta> contas;
 
         @Getter
         @OneToOne(mappedBy = "cliente", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
