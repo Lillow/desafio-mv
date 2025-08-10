@@ -26,7 +26,7 @@ class ClienteDtoMappingTest {
         dto.setTelefone("85999998888");
         dto.setCpf("12345678901");
         dto.setRg("2001122");
-        dto.setDataNascimento(LocalDate.of(1990, 1, 1));
+        dto.setDataNasc(LocalDate.of(1990, 1, 1));
 
         Cliente entidade = Cliente.fromDTO(dto);
         assertTrue(entidade instanceof ClientePF);
@@ -47,7 +47,7 @@ class ClienteDtoMappingTest {
         dto.setTelefone("8533334444");
         dto.setCnpj("12345678000199");
         dto.setRazaoSocial("EMPRESA XYZ LTDA");
-        dto.setInscricaoEstadual("ISENTO");
+        dto.setInscEstadual("ISENTO");
 
         Cliente entidade = Cliente.fromDTO(dto);
         assertTrue(entidade instanceof ClientePJ);

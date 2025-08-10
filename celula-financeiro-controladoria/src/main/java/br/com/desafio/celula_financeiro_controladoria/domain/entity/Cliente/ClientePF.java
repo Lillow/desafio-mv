@@ -9,11 +9,15 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "CLIENTE_PF")
 @NoArgsConstructor
+@Data
+@EqualsAndHashCode(callSuper = true)
 public class ClientePF extends Cliente {
 
     @Size(min = 11, max = 11, message = "CPF deve ter 11 dígitos")
@@ -25,13 +29,13 @@ public class ClientePF extends Cliente {
     private String rg;
 
     @Column(name = "DATA_NASC")
-    private LocalDate dataNascimento;
+    private LocalDate dataNasc;
 
     public ClientePF(ClienteDTO dto) {
         super(dto);
         this.cpf = dto.getCpf();
         this.rg = dto.getRg();
-        this.dataNascimento = dto.getDataNascimento();
+        this.dataNasc = dto.getDataNasc();
     }
 
     @Override
@@ -41,11 +45,11 @@ public class ClientePF extends Cliente {
         dto.setTipoPessoa(TipoPessoa.PF);
         dto.setCpf(this.cpf);
         dto.setRg(this.rg);
-        dto.setDataNascimento(this.dataNascimento);
+        dto.setDataNasc(this.dataNasc);
 
         dto.setCnpj(null);
         dto.setRazaoSocial(null);
-        dto.setInscricaoEstadual(null);
+        dto.setInscEstadual(null);
         return dto;
     }
 }

@@ -7,11 +7,15 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "CLIENTE_PJ")
 @NoArgsConstructor
+@Data
+@EqualsAndHashCode(callSuper = true)
 public class ClientePJ extends Cliente {
 
     @Size(min = 14, max = 14, message = "CNPJ deve ter 14 dígitos")
@@ -23,13 +27,13 @@ public class ClientePJ extends Cliente {
     private String razaoSocial;
 
     @Column(name = "INSCR_ESTADUAL", length = 20)
-    private String inscricaoEstadual;
+    private String inscEstadual;
 
     public ClientePJ(ClienteDTO dto) {
         super(dto);
         this.cnpj = dto.getCnpj();
         this.razaoSocial = dto.getRazaoSocial();
-        this.inscricaoEstadual = dto.getInscricaoEstadual();
+        this.inscEstadual = dto.getInscEstadual();
     }
 
     public ClienteDTO toDTO() {
@@ -39,11 +43,11 @@ public class ClientePJ extends Cliente {
         dto.setTipoPessoa(TipoPessoa.PJ);
         dto.setCnpj(this.cnpj);
         dto.setRazaoSocial(this.razaoSocial);
-        dto.setInscricaoEstadual(this.inscricaoEstadual);
+        dto.setInscEstadual(this.inscEstadual);
 
         dto.setCpf(null);
         dto.setRg(null);
-        dto.setDataNascimento(null);
+        dto.setDataNasc(null);
 
         return dto;
     }

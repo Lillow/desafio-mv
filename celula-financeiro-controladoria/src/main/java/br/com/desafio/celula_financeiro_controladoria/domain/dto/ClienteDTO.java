@@ -18,8 +18,8 @@ public class ClienteDTO extends BaseEntityDTO {
     private String telefone;
     private String rg;
     private String razaoSocial;
-    private String inscricaoEstadual;
-    private LocalDate dataNascimento;
+    private String inscEstadual;
+    private LocalDate dataNasc;
     private TipoPessoa tipoPessoa;
 
     private EnderecoDTO endereco;
