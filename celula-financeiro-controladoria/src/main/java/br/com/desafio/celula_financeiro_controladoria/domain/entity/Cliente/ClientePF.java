@@ -1,4 +1,4 @@
-package br.com.desafio.celula_financeiro_controladoria.domain.entity.Cliente;
+package br.com.desafio.celula_financeiro_controladoria.domain.entity.cliente;
 
 import java.time.LocalDate;
 

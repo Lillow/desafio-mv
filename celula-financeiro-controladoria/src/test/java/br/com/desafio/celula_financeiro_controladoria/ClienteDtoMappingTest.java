@@ -10,9 +10,9 @@ import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 
 import br.com.desafio.celula_financeiro_controladoria.domain.dto.ClienteDTO;
-import br.com.desafio.celula_financeiro_controladoria.domain.entity.Cliente.Cliente;
-import br.com.desafio.celula_financeiro_controladoria.domain.entity.Cliente.ClientePF;
-import br.com.desafio.celula_financeiro_controladoria.domain.entity.Cliente.ClientePJ;
+import br.com.desafio.celula_financeiro_controladoria.domain.entity.cliente.Cliente;
+import br.com.desafio.celula_financeiro_controladoria.domain.entity.cliente.ClientePF;
+import br.com.desafio.celula_financeiro_controladoria.domain.entity.cliente.ClientePJ;
 import br.com.desafio.celula_financeiro_controladoria.domain.enums.TipoPessoa;
 
 class ClienteDtoMappingTest {

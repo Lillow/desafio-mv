@@ -1,4 +1,4 @@
-package br.com.desafio.celula_financeiro_controladoria.domain.entity.Cliente;
+package br.com.desafio.celula_financeiro_controladoria.domain.entity.cliente;
 
 import br.com.desafio.celula_financeiro_controladoria.domain.dto.ClienteDTO;
 import br.com.desafio.celula_financeiro_controladoria.domain.enums.TipoPessoa;

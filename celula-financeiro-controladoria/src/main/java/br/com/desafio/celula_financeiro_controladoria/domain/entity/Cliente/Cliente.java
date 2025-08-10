@@ -1,12 +1,17 @@
-package br.com.desafio.celula_financeiro_controladoria.domain.entity.Cliente;
+package br.com.desafio.celula_financeiro_controladoria.domain.entity.cliente;
 
 import br.com.desafio.celula_financeiro_controladoria.domain.dto.ClienteDTO;
+import br.com.desafio.celula_financeiro_controladoria.domain.entity.Endereco;
 import br.com.desafio.celula_financeiro_controladoria.domain.entity.base.BaseEntity;
 import br.com.desafio.celula_financeiro_controladoria.domain.enums.TipoPessoa;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Inheritance;
 import jakarta.persistence.InheritanceType;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.FetchType;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
@@ -23,16 +28,26 @@ public abstract class Cliente extends BaseEntity {
         @Column(name = "TELEFONE", length = 20)
         private String telefone;
 
-        public Cliente(ClienteDTO clienteDTO) {
-                this.nome = clienteDTO.getNome();
-                this.email = clienteDTO.getEmail();
-                this.telefone = clienteDTO.getTelefone();
+        @Getter
+        @OneToOne(mappedBy = "cliente", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+        private Endereco endereco;
+
+        public Cliente(ClienteDTO dto) {
+                super(dto);
+                this.nome = dto.getNome();
+                this.email = dto.getEmail();
+                this.telefone = dto.getTelefone();
+
+                this.endereco = dto.getEndereco() != null ? new Endereco(dto.getEndereco()) : null;
         }
 
-        public void toDTO(ClienteDTO clienteDTO) {
-                clienteDTO.setNome(this.nome);
-                clienteDTO.setEmail(this.email);
-                clienteDTO.setTelefone(this.telefone);
+        public void toDTO(ClienteDTO dto) {
+                super.toDTO(dto);
+                dto.setNome(this.nome);
+                dto.setEmail(this.email);
+                dto.setTelefone(this.telefone);
+
+                dto.setEndereco(this.endereco != null ? this.endereco.toDTO() : null);
         }
 
         public abstract ClienteDTO toDTO();

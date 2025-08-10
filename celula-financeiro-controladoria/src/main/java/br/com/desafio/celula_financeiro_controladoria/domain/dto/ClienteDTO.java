@@ -2,13 +2,15 @@ package br.com.desafio.celula_financeiro_controladoria.domain.dto;
 
 import java.time.LocalDate;
 
+import br.com.desafio.celula_financeiro_controladoria.domain.dto.base.BaseEntityDTO;
 import br.com.desafio.celula_financeiro_controladoria.domain.enums.TipoPessoa;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Data
-public class ClienteDTO {
+@EqualsAndHashCode(callSuper = true)
+public class ClienteDTO extends BaseEntityDTO {
 
-    private Long id;
     private String nome;
     private String cpf;
     private String cnpj;
@@ -19,4 +21,6 @@ public class ClienteDTO {
     private String inscricaoEstadual;
     private LocalDate dataNascimento;
     private TipoPessoa tipoPessoa;
+
+    private EnderecoDTO endereco;
 }
