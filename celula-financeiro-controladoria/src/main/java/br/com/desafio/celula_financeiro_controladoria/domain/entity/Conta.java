@@ -1,8 +1,11 @@
 package br.com.desafio.celula_financeiro_controladoria.domain.entity;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
-import org.hibernate.annotations.Check;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
 
 import br.com.desafio.celula_financeiro_controladoria.domain.dto.ContaDTO;
 import br.com.desafio.celula_financeiro_controladoria.domain.entity.base.BaseEntity;
@@ -10,45 +13,53 @@ import br.com.desafio.celula_financeiro_controladoria.domain.entity.cliente.Clie
 import br.com.desafio.celula_financeiro_controladoria.domain.enums.StatusConta;
 import br.com.desafio.celula_financeiro_controladoria.domain.enums.TipoConta;
 import br.com.desafio.celula_financeiro_controladoria.domain.enums.TipoMovimentacao;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "CONTA", uniqueConstraints = {
-        @UniqueConstraint(name = "UK_CONTA_AG_NUM", columnNames = { "AGENCIA", "NUMERO" })
-})
-@Check(constraints = "SALDO >= 0")
+@Table(name = "conta", uniqueConstraints = @UniqueConstraint(name = "UK_CONTA_AG_NUM", columnNames = { "agencia",
+        "numero" }))
+@SQLDelete(sql = "update conta set ativo=false where id=?")
+@Where(clause = "ativo = true")
 @NoArgsConstructor
+@Data
+@EqualsAndHashCode(callSuper = true)
 public class Conta extends BaseEntity {
 
-    @Column(name = "DOCUMENTO", nullable = false, length = 14) // 11 (CPF) ou 14 (CNPJ)
-    private String documento;
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "cliente_id", nullable = false)
+    private Cliente cliente;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "TIPO_CONTA", nullable = false, length = 12)
-    private TipoConta tipoConta;
-
-    @Column(name = "AGENCIA", nullable = false, length = 10)
+    @Column(nullable = false, length = 10)
     private String agencia;
-
-    @Column(name = "NUMERO", nullable = false, length = 20)
+    @Column(nullable = false, length = 20)
     private String numero;
-
+    @Column(nullable = false, length = 14)
+    private String documento;
     @Enumerated(EnumType.STRING)
-    @Column(name = "STATUS", nullable = false, length = 10)
+    @Column(nullable = false)
+    private TipoConta tipoConta;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private StatusConta status;
 
-    @Column(name = "SALDO", nullable = false, precision = 20, scale = 2)
+    @Column(nullable = false, precision = 20, scale = 2)
     private BigDecimal saldo = BigDecimal.ZERO;
 
-    @jakarta.persistence.ManyToOne(optional = false)
-    @jakarta.persistence.JoinColumn(name = "CLIENTE_ID", nullable = false)
-    private Cliente cliente;
+    @OneToMany(mappedBy = "conta", cascade = CascadeType.ALL, orphanRemoval = false)
+    private List<Movimento> movimentos = new ArrayList<>();
 
     public Conta(ContaDTO dto) {
         super(dto);

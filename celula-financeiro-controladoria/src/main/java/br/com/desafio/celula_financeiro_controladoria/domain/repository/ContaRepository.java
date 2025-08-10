@@ -12,9 +12,7 @@ import br.com.desafio.celula_financeiro_controladoria.domain.entity.Conta;
 @Repository
 public interface ContaRepository extends JpaRepository<Conta, Long> {
 
-    Optional<Conta> findByAgenciaAndNumero(String agencia, String numero);
-
     List<Conta> findByClienteId(Long clienteId);
 
-    List<Conta> findByDocumento(String documento);
+    boolean existsByIdAndMovimentosIsNotEmpty(Long id);
 }
