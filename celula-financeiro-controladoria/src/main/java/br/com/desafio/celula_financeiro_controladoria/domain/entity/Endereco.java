@@ -12,6 +12,8 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -19,11 +21,12 @@ import lombok.Setter;
 @Entity
 @Table(name = "ENDERECO")
 @NoArgsConstructor
+@Data
+@EqualsAndHashCode(callSuper = true)
 public class Endereco extends BaseEntity {
 
     @NotBlank
     @Size(max = 120)
-    @Getter
     @Column(name = "LOGRADOURO", length = 120, nullable = false)
     private String logradouro;
 
@@ -82,4 +85,9 @@ public class Endereco extends BaseEntity {
         return dto;
     }
 
+    public static EnderecoDTO from(Endereco e) {
+        if (e == null)
+            return null;
+        return e.toDTO();
+    }
 }
