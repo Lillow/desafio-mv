@@ -1,111 +1,126 @@
 package br.com.desafio.celula_financeiro_controladoria.domain.service;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
-import java.util.ArrayList;
+import java.math.RoundingMode;
+import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import br.com.desafio.celula_financeiro_controladoria.domain.dto.ItemReceitaClienteDTO;
-import br.com.desafio.celula_financeiro_controladoria.domain.dto.RelatorioClienteDTO;
-import br.com.desafio.celula_financeiro_controladoria.domain.dto.RelatorioReceitaDTO;
+import br.com.desafio.celula_financeiro_controladoria.domain.dto.RelatorioSaldoClienteDTO;
 import br.com.desafio.celula_financeiro_controladoria.domain.entity.Conta;
+import br.com.desafio.celula_financeiro_controladoria.domain.entity.Endereco;
+import br.com.desafio.celula_financeiro_controladoria.domain.entity.Movimento;
 import br.com.desafio.celula_financeiro_controladoria.domain.entity.cliente.Cliente;
+import br.com.desafio.celula_financeiro_controladoria.domain.enums.TipoMovimento;
+import br.com.desafio.celula_financeiro_controladoria.domain.repository.ContaRepository;
+import br.com.desafio.celula_financeiro_controladoria.domain.repository.EnderecoRepository;
 import br.com.desafio.celula_financeiro_controladoria.domain.repository.MovimentoRepository;
 import br.com.desafio.celula_financeiro_controladoria.domain.repository.cliente.ClienteRepository;
 import jakarta.persistence.EntityNotFoundException;
+import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
 public class RelatorioService {
 
-    @Autowired
-    private ClienteRepository clienteRepository;
+    private final ClienteRepository clienteRepo;
+    private final EnderecoRepository enderecoRepo;
+    private final ContaRepository contaRepo;
+    private final MovimentoRepository movimentoRepo;
 
-    @Autowired
-    private MovimentoRepository movimentoRepository;
+    @Transactional(readOnly = true)
+    public RelatorioSaldoClienteDTO saldoCliente(Long clienteId) {
+        Cliente cliente = clienteRepo.findById(clienteId)
+                .orElseThrow(() -> new EntityNotFoundException("Cliente não encontrado"));
 
-    // preço por movimentação conforme volume do cliente no período
-    private BigDecimal precoPorMov(long qtd) {
-        if (qtd <= 10)
-            return new BigDecimal("1.00");
-        if (qtd <= 20)
-            return new BigDecimal("0.75");
-        return new BigDecimal("0.50");
+        Endereco end = enderecoRepo.findByClienteId(clienteId).orElse(null);
+
+        String enderecoFmt = end == null ? "—"
+                : String.format("%s, %s%s, %s, %s, %s, %s",
+                        nullToEmpty(end.getLogradouro()),
+                        nullToEmpty(end.getNumero()),
+                        end.getComplemento() == null || end.getComplemento().isBlank()
+                                ? ""
+                                : " - " + end.getComplemento(),
+                        nullToEmpty(end.getBairro()),
+                        nullToEmpty(end.getCidade()),
+                        nullToEmpty(end.getUf()),
+                        nullToEmpty(end.getCep()));
+
+        List<Conta> contas = contaRepo.findByClienteId(clienteId);
+        List<Movimento> movs = movimentoRepo.findByClienteId(clienteId);
+
+        long qtdCred = movs.stream().filter(m -> m.getTipo() == TipoMovimento.CREDITO).count();
+        long qtdDeb = movs.stream().filter(m -> m.getTipo() == TipoMovimento.DEBITO).count();
+        long total = movs.size();
+
+        BigDecimal valorCredito = movs.stream()
+                .filter(m -> m.getTipo() == TipoMovimento.CREDITO)
+                .map(Movimento::getValor)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal valorDebito = movs.stream()
+                .filter(m -> m.getTipo() == TipoMovimento.DEBITO)
+                .map(Movimento::getValor)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal saldoInicial = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        BigDecimal saldoAtual = saldoInicial.add(valorCredito).subtract(valorDebito)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal valorPago = calcularTaxaPorPeriodosDe30Dias(cliente, movs);
+
+        return new RelatorioSaldoClienteDTO(
+                cliente.getNome(),
+                java.time.LocalDateTime.ofInstant(cliente.getCreatedAt(), java.time.ZoneId.systemDefault())
+                        .toLocalDate(),
+                enderecoFmt,
+                qtdCred,
+                qtdDeb,
+                total,
+                valorPago,
+                saldoInicial,
+                saldoAtual);
     }
 
-    public RelatorioClienteDTO saldoCliente(Long clienteId) {
-        Cliente cliente = clienteRepository.findById(clienteId).orElseThrow(EntityNotFoundException::new);
+    // Regra: a cada janela de 30 dias desde o createdAt do cliente
+    // 1..10 movs => R$1,00 por movimentação
+    // 11..20 movs => R$0,75 por movimentação
+    // >20 movs => R$0,50 por movimentação
+    private BigDecimal calcularTaxaPorPeriodosDe30Dias(Cliente cliente, List<Movimento> movs) {
+        if (movs.isEmpty())
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
 
-        BigDecimal cred = BigDecimal.ZERO;
-        BigDecimal deb = BigDecimal.ZERO;
-        List<Conta> contas = cliente.getContas();
-        for (Conta c : contas) {
-            cred = cred.add(movimentoRepository.sumCreditosByConta(c.getId()));
-            deb = deb.add(movimentoRepository.sumDebitosByConta(c.getId()));
-        }
-        BigDecimal saldoInicial = BigDecimal.ZERO;
-        BigDecimal saldoAtual = cred.subtract(deb); // ou somar saldos das contas, se preferir
+        var base = cliente.getCreatedAt();
+        var baseOffset = java.time.OffsetDateTime.ofInstant(base, ZoneId.systemDefault());
+        Map<Long, Long> contagemPorJanela = movs.stream()
+                .collect(Collectors.groupingBy(m -> (Long) janelaIndex(baseOffset, m), Collectors.counting()));
 
-        long qtd = 0;
-        for (Conta c : contas)
-            qtd += movimentoRepository.countByContaIdAndDataHoraBetween(c.getId(), OffsetDateTime.MIN,
-                    OffsetDateTime.now());
-        BigDecimal valorPago = precoPorMov(qtd).multiply(BigDecimal.valueOf(qtd));
-
-        return RelatorioClienteDTO.from(cliente, cred, deb, qtd, valorPago, saldoInicial, saldoAtual, null, null);
-    }
-
-    public RelatorioClienteDTO saldoClientePeriodo(Long clienteId, OffsetDateTime ini, OffsetDateTime fim) {
-        var cliente = clienteRepository.findById(clienteId).orElseThrow(EntityNotFoundException::new);
-        BigDecimal cred = BigDecimal.ZERO, deb = BigDecimal.ZERO;
-        long qtd = 0;
-        for (var c : cliente.getContas()) {
-            cred = cred.add(movimentoRepository.sumCreditosByContaAndPeriodo(c.getId(), ini, fim));
-            deb = deb.add(movimentoRepository.sumDebitosByContaAndPeriodo(c.getId(), ini, fim));
-            qtd += movimentoRepository.countByContaIdAndDataHoraBetween(c.getId(), ini, fim);
-        }
-        BigDecimal valorPago = precoPorMov(qtd).multiply(BigDecimal.valueOf(qtd));
-        BigDecimal saldoInicial = BigDecimal.ZERO; // pode-se calcular trazendo acumulado anterior
-        BigDecimal saldoAtual = cred.subtract(deb);
-
-        return RelatorioClienteDTO.from(cliente, cred, deb, qtd, valorPago, saldoInicial, saldoAtual, ini, fim);
-    }
-
-    public List<RelatorioClienteDTO.ResumoSaldoClienteDTO> saldosTodosClientesNaData(OffsetDateTime data) {
-        var all = clienteRepository.findAll();
-        var out = new ArrayList<RelatorioClienteDTO.ResumoSaldoClienteDTO>();
-        for (Cliente cli : all) {
-            BigDecimal cred = BigDecimal.ZERO;
-            BigDecimal deb = BigDecimal.ZERO;
-            for (var c : cli.getContas()) {
-                cred = cred.add(movimentoRepository.sumCreditosByContaAndPeriodo(c.getId(), OffsetDateTime.MIN, data));
-                deb = deb.add(movimentoRepository.sumDebitosByContaAndPeriodo(c.getId(), OffsetDateTime.MIN, data));
-            }
-            out.add(new RelatorioClienteDTO.ResumoSaldoClienteDTO(cli.getId(), cli.getNome(),
-                    java.time.LocalDateTime.ofInstant(cli.getCreatedAt(), java.time.ZoneId.systemDefault())
-                            .toLocalDate(),
-                    cred.subtract(deb)));
-        }
-        return out;
-    }
-
-    public RelatorioReceitaDTO receitaPeriodo(OffsetDateTime ini, OffsetDateTime fim) {
-        var dados = movimentoRepository.countPorClienteNoPeriodo(ini, fim);
-        List<ItemReceitaClienteDTO> itens = new ArrayList<>();
         BigDecimal total = BigDecimal.ZERO;
-
-        for (Object[] row : dados) {
-            Long clienteId = (Long) row[0];
-            long qtd = (long) row[1];
-            var cliente = clienteRepository.findById(clienteId).orElseThrow(EntityNotFoundException::new);
-            BigDecimal unit = precoPorMov(qtd);
-            BigDecimal valor = unit.multiply(BigDecimal.valueOf(qtd));
-            total = total.add(valor);
-
-            itens.add(new ItemReceitaClienteDTO(cliente.getId(), cliente.getNome(), qtd, valor));
+        for (var entry : contagemPorJanela.entrySet()) {
+            long q = entry.getValue();
+            BigDecimal precoUnit = q <= 10 ? bd("1.00") : (q <= 20 ? bd("0.75") : bd("0.50"));
+            total = total.add(precoUnit.multiply(BigDecimal.valueOf(q)));
         }
-        return new RelatorioReceitaDTO(ini, fim, itens, total);
+        return total.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private long janelaIndex(java.time.OffsetDateTime base, Movimento m) {
+        var d1 = base.atZoneSameInstant(ZoneId.systemDefault()).toLocalDate();
+        var d2 = m.getDataHora().atZone(ZoneId.systemDefault()).toLocalDate();
+        long days = java.time.temporal.ChronoUnit.DAYS.between(d1, d2);
+        return Math.max(0, days / 30);
+    }
+
+    private static BigDecimal bd(String v) {
+        return new BigDecimal(v);
+    }
+
+    private static String nullToEmpty(String s) {
+        return s == null ? "" : s;
     }
 }

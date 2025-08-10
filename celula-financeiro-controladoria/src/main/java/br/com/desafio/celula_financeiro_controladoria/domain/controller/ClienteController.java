@@ -20,7 +20,7 @@ import br.com.desafio.celula_financeiro_controladoria.domain.service.ClienteServ
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/clientes")
+@RequestMapping("/clientes")
 @RequiredArgsConstructor
 public class ClienteController {
 
