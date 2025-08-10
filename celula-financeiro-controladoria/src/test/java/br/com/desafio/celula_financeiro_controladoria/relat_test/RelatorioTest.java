@@ -1,6 +1,9 @@
 package br.com.desafio.celula_financeiro_controladoria.relat_test;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -23,12 +26,11 @@ import br.com.desafio.celula_financeiro_controladoria.domain.enums.StatusConta;
 import br.com.desafio.celula_financeiro_controladoria.domain.enums.TipoConta;
 import br.com.desafio.celula_financeiro_controladoria.domain.enums.TipoMovimento;
 import br.com.desafio.celula_financeiro_controladoria.domain.repository.MovimentoRepository;
-import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @ActiveProfiles("h2")
 @Transactional
-class RelatSaldCliTest {
+class RelatorioTest {
 
     @Autowired
     private ClienteController clienteController;
@@ -122,4 +124,81 @@ class RelatSaldCliTest {
         m.setAtivo(true);
         return m;
     }
+
+    @Test
+    void deveGerarRelatorioDeSaldoDoClientePorPeriodo() {
+        // cria cliente
+        ClientePF pf = new ClientePF();
+        pf.setNome("Cliente Periodo");
+        pf.setEmail("periodo@mail.com");
+        pf.setTelefone("11999990000");
+        pf.setCpf("11122233344");
+        pf = clienteController.criarPF(pf).getBody();
+        assertThat(pf).isNotNull();
+
+        // endereço
+        EnderecoDTO e = new EnderecoDTO();
+        e.setLogradouro("Rua P");
+        e.setNumero("10");
+        e.setBairro("Centro");
+        e.setCidade("SP");
+        e.setUf("SP");
+        e.setCep("01001000");
+        e.setAtivo(true);
+        enderecoController.criar(pf.getId(), e);
+
+        // conta
+        Conta c = new Conta();
+        c.setAgencia("0002");
+        c.setNumero("9999-9");
+        c.setDocumento("11122233344");
+        c.setTipoConta(TipoConta.CORRENTE);
+        c.setStatus(StatusConta.ATIVA);
+        c = contaController.criar(pf.getId(), c).getBody();
+        assertThat(c).isNotNull();
+
+        // período alvo
+        var from = LocalDate.now().minusDays(5);
+        var to = LocalDate.now().plusDays(5);
+
+        // movimentações dentro do período
+        movimentoRepo.saveAll(List.of(
+                mov(c, TipoMovimento.CREDITO, bd("100.00"), LocalDateTime.now().minusDays(1)),
+                mov(c, TipoMovimento.DEBITO, bd("30.00"), LocalDateTime.now()),
+                mov(c, TipoMovimento.CREDITO, bd("50.00"), LocalDateTime.now().plusDays(1))));
+        // fora do período (não deve contar)
+        movimentoRepo.save(mov(c, TipoMovimento.DEBITO, bd("999.99"), LocalDateTime.now().minusDays(40)));
+
+        var dto = relatorioController
+                .relatorioSaldoPeriodo(pf.getId(), from, to)
+                .getBody();
+
+        assertThat(dto).isNotNull();
+        assertThat(dto.periodoInicio()).isEqualTo(from);
+        assertThat(dto.periodoFim()).isEqualTo(to);
+        assertThat(dto.cliente()).isEqualTo("Cliente Periodo");
+        assertThat(dto.movsCredito()).isEqualTo(2);
+        assertThat(dto.movsDebito()).isEqualTo(1);
+        assertThat(dto.totalMovs()).isEqualTo(3);
+
+        // taxa: 3 movimentos na mesma janela => 3 * 1.00
+        assertThat(dto.valorPagoMovimentacoes()).isEqualByComparingTo(bd("3.00"));
+
+        // saldo período: (100 + 50) - 30 = 120.00, com saldo inicial 0.00
+        assertThat(dto.saldoInicial()).isEqualByComparingTo(bd("0.00"));
+        assertThat(dto.saldoAtual()).isEqualByComparingTo(bd("120.00"));
+    }
+
+    private Movimento mov(Conta c, TipoMovimento tipo, BigDecimal valor, LocalDateTime data) {
+        Movimento m = new Movimento();
+        m.setConta(c);
+        m.setTipo(tipo);
+        m.setValor(valor);
+        m.setOrigem("IF");
+        m.setDescricao("teste");
+        m.setDataHora(data);
+        m.setAtivo(true);
+        return m;
+    }
+
 }
