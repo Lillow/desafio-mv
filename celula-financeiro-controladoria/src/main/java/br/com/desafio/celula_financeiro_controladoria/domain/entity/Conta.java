@@ -8,6 +8,7 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import br.com.desafio.celula_financeiro_controladoria.domain.dto.ContaDTO;
 import br.com.desafio.celula_financeiro_controladoria.domain.entity.base.BaseEntity;
@@ -61,7 +62,7 @@ public class Conta extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "cliente_id", nullable = false)
-    @JsonBackReference
+    @JsonIgnore
     private Cliente cliente;
 
     public Conta(ContaDTO dto) {

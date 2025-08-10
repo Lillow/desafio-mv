@@ -69,6 +69,16 @@ public abstract class Cliente extends BaseEntity {
 
         public abstract ClienteDTO toDTO();
 
+        public void adicionarConta(Conta conta) {
+                contas.add(conta);
+                conta.setCliente(this);
+        }
+
+        public void removerConta(Conta conta) {
+                contas.remove(conta);
+                conta.setCliente(null);
+        }
+
         /**
          * Fábrica: cria PF ou PJ com validações mínimas.
          * - Se dto.tipoPessoa == PF -> exige cpf
