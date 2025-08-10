@@ -1,10 +1,8 @@
 package br.com.desafio.celula_financeiro_controladoria.domain.controller;
 
-import java.util.List;
-
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -13,37 +11,40 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import br.com.desafio.celula_financeiro_controladoria.domain.dto.AtualizaContaDTO;
 import br.com.desafio.celula_financeiro_controladoria.domain.entity.Conta;
 import br.com.desafio.celula_financeiro_controladoria.domain.service.ContaService;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/contas")
-@RequiredArgsConstructor
+@RequestMapping("/contas")
 public class ContaController {
 
-    private final ContaService contaService;
+    @Autowired
+    private ContaService contaService;
+
+    public ContaController(ContaService contaService) {
+        this.contaService = contaService;
+    }
 
     @PostMapping
-    public Conta criar(@RequestBody @Valid Conta dto) {
-        return contaService.criar(dto);
+    @ResponseStatus(HttpStatus.CREATED)
+    public Conta criar(@RequestBody Conta conta) {
+        return contaService.criar(conta);
     }
 
     @PutMapping("/{id}")
-    public Conta atualizar(@PathVariable Long id, @RequestBody @Valid Conta dto) {
-        dto.setId(id);
-        return contaService.atualizar(dto);
+    public Conta atualizar(@PathVariable Long id, @RequestBody AtualizaContaDTO dto) {
+        Conta c = new Conta();
+        c.setAgencia(dto.agencia());
+        c.setNumero(dto.numero());
+        c.setDocumento(dto.documento());
+        // mapear tipo se for enum string
+        return contaService.atualizar(id, c);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void excluir(@PathVariable Long id) {
-        contaService.excluirLogicamente(id);
-    }
-
-    @GetMapping("/cliente/{clienteId}")
-    public List<Conta> listarDoCliente(@PathVariable Long clienteId) {
-        return contaService.listarDoCliente(clienteId);
+        contaService.excluirLogico(id);
     }
 }
