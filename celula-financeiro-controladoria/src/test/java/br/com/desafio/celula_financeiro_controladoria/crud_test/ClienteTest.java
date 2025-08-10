@@ -1,4 +1,4 @@
-package br.com.desafio.celula_financeiro_controladoria.cliente;
+package br.com.desafio.celula_financeiro_controladoria.crud_test;
 
 import java.time.LocalDate;
 import java.util.List;

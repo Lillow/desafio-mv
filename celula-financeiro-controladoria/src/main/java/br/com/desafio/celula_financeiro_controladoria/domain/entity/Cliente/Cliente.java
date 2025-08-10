@@ -1,6 +1,9 @@
 package br.com.desafio.celula_financeiro_controladoria.domain.entity.cliente;
 
+import java.util.ArrayList;
 import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import br.com.desafio.celula_financeiro_controladoria.domain.dto.ClienteDTO;
 import br.com.desafio.celula_financeiro_controladoria.domain.entity.Conta;
@@ -13,6 +16,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Inheritance;
 import jakarta.persistence.InheritanceType;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import lombok.Data;
 import lombok.Getter;
@@ -34,7 +38,12 @@ public abstract class Cliente extends BaseEntity {
         @Column(name = "TELEFONE", length = 20)
         private String telefone;
 
-        private List<Conta> contas;
+        @OneToMany(mappedBy = "cliente", cascade = CascadeType.ALL, // propaga persist/update das contas criadas pelo
+                                                                    // cliente
+                        orphanRemoval = false // não remover fisicamente ao tirar da lista (exclusão será lógica)
+        )
+        @JsonIgnore // evita recursão no JSON nos controllers; use @JsonManaged/Back se preferir
+        private List<Conta> contas = new ArrayList<>();
 
         @Getter
         @OneToOne(mappedBy = "cliente", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)

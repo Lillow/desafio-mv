@@ -7,6 +7,8 @@ import java.util.List;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+
 import br.com.desafio.celula_financeiro_controladoria.domain.dto.ContaDTO;
 import br.com.desafio.celula_financeiro_controladoria.domain.entity.base.BaseEntity;
 import br.com.desafio.celula_financeiro_controladoria.domain.entity.cliente.Cliente;
@@ -38,10 +40,6 @@ import lombok.NoArgsConstructor;
 @EqualsAndHashCode(callSuper = true)
 public class Conta extends BaseEntity {
 
-    @ManyToOne(optional = false, fetch = FetchType.LAZY)
-    @JoinColumn(name = "cliente_id", nullable = false)
-    private Cliente cliente;
-
     @Column(nullable = false, length = 10)
     private String agencia;
     @Column(nullable = false, length = 20)
@@ -60,6 +58,11 @@ public class Conta extends BaseEntity {
 
     @OneToMany(mappedBy = "conta", cascade = CascadeType.ALL, orphanRemoval = false)
     private List<Movimento> movimentos = new ArrayList<>();
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "cliente_id", nullable = false)
+    @JsonBackReference
+    private Cliente cliente;
 
     public Conta(ContaDTO dto) {
         super(dto);
