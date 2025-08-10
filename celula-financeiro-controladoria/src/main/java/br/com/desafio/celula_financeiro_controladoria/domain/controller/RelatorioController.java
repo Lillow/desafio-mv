@@ -1,6 +1,7 @@
 package br.com.desafio.celula_financeiro_controladoria.domain.controller;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -11,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import br.com.desafio.celula_financeiro_controladoria.domain.dto.ClienteSaldoNaDataDTO;
+import br.com.desafio.celula_financeiro_controladoria.domain.dto.ReceitaEmpresaPeriodoDTO;
 import br.com.desafio.celula_financeiro_controladoria.domain.dto.RelatorioSaldoClienteDTO;
 import br.com.desafio.celula_financeiro_controladoria.domain.dto.RelatorioSaldoClientePeriodoDTO;
 import br.com.desafio.celula_financeiro_controladoria.domain.service.RelatorioService;
@@ -36,5 +39,18 @@ public class RelatorioController {
             @RequestParam("to") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
 
         return ResponseEntity.ok(relatorioService.saldoClientePeriodo(clienteId, from, to));
+    }
+
+    @GetMapping("/relatorios/saldos-clientes")
+    public ResponseEntity<List<ClienteSaldoNaDataDTO>> saldosClientesEm(
+            @RequestParam("data") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate data) {
+        return ResponseEntity.ok(relatorioService.saldoTodosClientesNaData(data));
+    }
+
+    @GetMapping("/relatorios/receita")
+    public ResponseEntity<ReceitaEmpresaPeriodoDTO> receita(
+            @RequestParam("from") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam("to") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(relatorioService.receitaEmpresaPeriodo(from, to));
     }
 }

@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -199,6 +200,138 @@ class RelatorioTest {
         m.setDataHora(data);
         m.setAtivo(true);
         return m;
+    }
+
+    @Test
+    void deveGerarRelatorioDeSaldoDeTodosClientesNaData() {
+        // clientes
+        var pfA = new ClientePF();
+        pfA.setNome("X");
+        pfA.setEmail("x@mail.com");
+        pfA.setTelefone("1");
+        pfA.setCpf("10020030001");
+        pfA = clienteController.criarPF(pfA).getBody();
+
+        var pfB = new ClientePF();
+        pfB.setNome("Y");
+        pfB.setEmail("y@mail.com");
+        pfB.setTelefone("2");
+        pfB.setCpf("10020030002");
+        pfB = clienteController.criarPF(pfB).getBody();
+
+        assertThat(pfA).isNotNull();
+        assertThat(pfB).isNotNull();
+
+        // contas
+        var cA = new Conta();
+        cA.setAgencia("0001");
+        cA.setNumero("1");
+        cA.setDocumento("10020030001");
+        cA.setTipoConta(TipoConta.CORRENTE);
+        cA.setStatus(StatusConta.ATIVA);
+        cA = contaController.criar(pfA.getId(), cA).getBody();
+
+        var cB = new Conta();
+        cB.setAgencia("0001");
+        cB.setNumero("2");
+        cB.setDocumento("10020030002");
+        cB.setTipoConta(TipoConta.CORRENTE);
+        cB.setStatus(StatusConta.ATIVA);
+        cB = contaController.criar(pfB.getId(), cB).getBody();
+
+        // movimentos
+        var alvo = LocalDate.now();
+        movimentoRepo.saveAll(List.of(
+                mov(cA, TipoMovimento.CREDITO, bd("200.00"), alvo.atTime(10, 0)),
+                mov(cA, TipoMovimento.DEBITO, bd("50.00"), alvo.atTime(11, 0)),
+                mov(cB, TipoMovimento.CREDITO, bd("80.00"), alvo.minusDays(1).atTime(10, 0)),
+                mov(cB, TipoMovimento.DEBITO, bd("20.00"), alvo.atTime(9, 0)),
+                // fora da data (não conta para saldo na data):
+                mov(cB, TipoMovimento.DEBITO, bd("999.00"), alvo.plusDays(1).atTime(10, 0))));
+
+        var lista = relatorioController.saldosClientesEm(alvo).getBody();
+        assertThat(lista).isNotNull();
+        // saldo X = 200 - 50 = 150
+        assertThat(lista.stream().filter(l -> l.cliente().equals("X")).findFirst().get().saldo())
+                .isEqualByComparingTo(bd("150.00"));
+        // saldo Y = 80 - 20 = 60
+        assertThat(lista.stream().filter(l -> l.cliente().equals("Y")).findFirst().get().saldo())
+                .isEqualByComparingTo(bd("60.00"));
+    }
+
+    @Test
+    void deveGerarRelatorioDeReceitaDaEmpresaPorPeriodo() {
+        // C1 com 8 movs na janela -> 8 * 1.00
+        var c1 = novoClienteComConta("Cliente A", "11111111111");
+        var conta1 = c1.conta();
+
+        // C2 com 15 movs na janela -> 15 * 0.75
+        var c2 = novoClienteComConta("Cliente B", "22222222222");
+        var conta2 = c2.conta();
+
+        // C3 sem movimentos -> 0
+        var c3 = novoClienteComConta("Cliente C", "33333333333");
+
+        var from = LocalDate.now().minusDays(2);
+        var to = LocalDate.now().plusDays(2);
+
+        // cria 8 movs pro C1
+        for (int i = 0; i < 8; i++) {
+            movimentoRepo.save(mov(conta1, TipoMovimento.CREDITO, bd("10.00"), LocalDateTime.now().minusDays(1)));
+        }
+
+        // cria 15 movs pro C2
+        for (int i = 0; i < 15; i++) {
+            movimentoRepo.save(mov(conta2, (i % 2 == 0 ? TipoMovimento.CREDITO : TipoMovimento.DEBITO), bd("5.00"),
+                    LocalDateTime.now()));
+        }
+
+        // um movimento fora do período para C2 (não conta)
+        movimentoRepo.save(mov(conta2, TipoMovimento.CREDITO, bd("999.00"), LocalDateTime.now().minusDays(40)));
+
+        var dto = relatorioController.receita(from, to).getBody();
+        assertThat(dto).isNotNull();
+        assertThat(dto.inicio()).isEqualTo(from);
+        assertThat(dto.fim()).isEqualTo(to);
+
+        var linhaA = dto.clientes().stream().filter(l -> l.cliente().equals("Cliente A")).findFirst().get();
+        var linhaB = dto.clientes().stream().filter(l -> l.cliente().equals("Cliente B")).findFirst().get();
+        var linhaC = dto.clientes().stream().filter(l -> l.cliente().equals("Cliente C")).findFirst().get();
+
+        assertThat(linhaA.quantidadeMovs()).isEqualTo(8);
+        assertThat(linhaA.valorCobrado()).isEqualByComparingTo(bd("8.00"));
+
+        assertThat(linhaB.quantidadeMovs()).isEqualTo(15);
+        // 15 movimentos na mesma janela: 15 * 0.75 = 11.25
+        assertThat(linhaB.valorCobrado()).isEqualByComparingTo(bd("11.25"));
+
+        assertThat(linhaC.quantidadeMovs()).isEqualTo(0);
+        assertThat(linhaC.valorCobrado()).isEqualByComparingTo(bd("0.00"));
+
+        assertThat(dto.total()).isEqualByComparingTo(bd("19.25"));
+    }
+
+    // ---- helpers específicos deste teste ----
+    private record CliConta(ClientePF cliente, Conta conta) {
+    }
+
+    private CliConta novoClienteComConta(String nome, String cpf) {
+        var pf = new ClientePF();
+        pf.setNome(nome);
+        pf.setEmail(nome.toLowerCase().replace(" ", ".") + "@mail.com");
+        pf.setTelefone("1");
+        pf.setCpf(cpf);
+        pf = clienteController.criarPF(pf).getBody();
+
+        var c = new Conta();
+        c.setAgencia("0001");
+        c.setNumero(UUID.randomUUID().toString().substring(0, 6));
+        c.setDocumento(cpf);
+        c.setTipoConta(TipoConta.CORRENTE);
+        c.setStatus(StatusConta.ATIVA);
+        c = contaController.criar(pf.getId(), c).getBody();
+
+        return new CliConta(pf, c);
     }
 
 }

@@ -19,4 +19,12 @@ public interface MovimentoRepository extends JpaRepository<Movimento, Long> {
                            and m.dataHora between :inicio and :fim
                         """)
         List<Movimento> findByClienteIdAndPeriodo(Long clienteId, LocalDateTime inicio, LocalDateTime fim);
+
+        @Query("""
+                        select m from Movimento m
+                         where m.conta.cliente.id = :clienteId
+                           and m.dataHora <= :ate
+                        """)
+        List<Movimento> findByClienteIdAte(Long clienteId, java.time.LocalDateTime ate);
+
 }

@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -11,6 +12,9 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import br.com.desafio.celula_financeiro_controladoria.domain.dto.ClienteSaldoNaDataDTO;
+import br.com.desafio.celula_financeiro_controladoria.domain.dto.ReceitaClientePeriodoDTO;
+import br.com.desafio.celula_financeiro_controladoria.domain.dto.ReceitaEmpresaPeriodoDTO;
 import br.com.desafio.celula_financeiro_controladoria.domain.dto.RelatorioSaldoClienteDTO;
 import br.com.desafio.celula_financeiro_controladoria.domain.dto.RelatorioSaldoClientePeriodoDTO;
 import br.com.desafio.celula_financeiro_controladoria.domain.entity.Endereco;
@@ -190,6 +194,64 @@ public class RelatorioService {
 
         private static BigDecimal bd(String v) {
                 return new BigDecimal(v).setScale(2);
+        }
+
+        @Transactional(readOnly = true)
+        public List<ClienteSaldoNaDataDTO> saldoTodosClientesNaData(LocalDate data) {
+                var fim = data.atTime(23, 59, 59);
+
+                return clienteRepo.findAll().stream().map(cliente -> {
+                        var movs = movimentoRepo.findByClienteIdAte(cliente.getId(), fim);
+
+                        var credito = movs.stream()
+                                        .filter(m -> m.getTipo() == TipoMovimento.CREDITO)
+                                        .map(Movimento::getValor)
+                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                        var debito = movs.stream()
+                                        .filter(m -> m.getTipo() == TipoMovimento.DEBITO)
+                                        .map(Movimento::getValor)
+                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                        var saldo = credito.subtract(debito).setScale(2);
+
+                        return new ClienteSaldoNaDataDTO(
+                                        cliente.getNome(),
+                                        java.time.LocalDateTime.ofInstant(cliente.getCreatedAt(),
+                                                        java.time.ZoneId.systemDefault()).toLocalDate(),
+                                        data,
+                                        saldo);
+                }).toList();
+
+        }
+
+        @Transactional(readOnly = true)
+        public ReceitaEmpresaPeriodoDTO receitaEmpresaPeriodo(LocalDate inicio, LocalDate fim) {
+                var iniDT = inicio.atStartOfDay();
+                var fimDT = fim.atTime(23, 59, 59);
+
+                var clientes = clienteRepo.findAll();
+
+                var linhas = new ArrayList<ReceitaClientePeriodoDTO>();
+                BigDecimal total = BigDecimal.ZERO;
+
+                for (var cli : clientes) {
+                        var movs = movimentoRepo.findByClienteIdAndPeriodo(cli.getId(), iniDT, fimDT);
+                        if (movs.isEmpty()) {
+                                linhas.add(new ReceitaClientePeriodoDTO(cli.getId(), cli.getNome(), 0L,
+                                                BigDecimal.ZERO.setScale(2)));
+                                continue;
+                        }
+
+                        // usa a mesma regra de precificação em janelas de 30 dias
+                        BigDecimal valorCobrado = calcularTaxaPorPeriodosDe30Dias(cli, movs);
+                        total = total.add(valorCobrado);
+
+                        linhas.add(new ReceitaClientePeriodoDTO(cli.getId(), cli.getNome(), movs.size(),
+                                        valorCobrado.setScale(2)));
+                }
+
+                return new ReceitaEmpresaPeriodoDTO(inicio, fim, linhas, total.setScale(2));
         }
 
 }
