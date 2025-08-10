@@ -11,12 +11,15 @@ import jakarta.persistence.InheritanceType;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.FetchType;
+import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
 @Inheritance(strategy = InheritanceType.JOINED)
 @NoArgsConstructor
+@Data
+@lombok.EqualsAndHashCode(callSuper = true)
 public abstract class Cliente extends BaseEntity {
 
         @Column(name = "NOME", nullable = false, length = 150)
