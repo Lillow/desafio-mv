@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import br.com.desafio.celula_financeiro_controladoria.domain.dto.MovimentoDTO;
-import br.com.desafio.celula_financeiro_controladoria.domain.dto.base.BaseEntityDTO;
 import br.com.desafio.celula_financeiro_controladoria.domain.entity.base.BaseEntity;
 import br.com.desafio.celula_financeiro_controladoria.domain.enums.TipoMovimento;
 import jakarta.persistence.Column;
