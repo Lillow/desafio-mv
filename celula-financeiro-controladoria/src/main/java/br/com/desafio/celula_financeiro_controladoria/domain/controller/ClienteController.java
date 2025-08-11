@@ -28,7 +28,6 @@ public class ClienteController {
     @Autowired
     private ClienteService clienteService;
 
-    // --------- comuns ----------
     @GetMapping
     public ResponseEntity<List<Cliente>> listar() {
         return ResponseEntity.ok(clienteService.listarTodos());

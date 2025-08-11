@@ -26,14 +26,12 @@ public class ContaController {
     @Autowired
     private ContaService contaService;
 
-    // POST /clientes/{clienteId}/contas
     @PostMapping("/clientes/{clienteId}/contas")
     public ResponseEntity<Conta> criar(@PathVariable Long clienteId, @RequestBody Conta conta) {
         Conta criada = contaService.criar(clienteId, conta);
         return ResponseEntity.status(HttpStatus.CREATED).body(criada);
     }
 
-    // GET /clientes/{clienteId}/contas
     @GetMapping("/clientes/{clienteId}/contas")
     public ResponseEntity<List<Conta>> listarPorCliente(@PathVariable Long clienteId) {
         return ResponseEntity.ok(contaService.listarPorCliente(clienteId));
@@ -45,13 +43,11 @@ public class ContaController {
         return ResponseEntity.ok(contaService.buscarPorId(id));
     }
 
-    // PUT /contas/{id}
     @PutMapping("/contas/{id}")
     public ResponseEntity<Conta> atualizar(@PathVariable Long id, @RequestBody Conta req) {
         return ResponseEntity.ok(contaService.atualizar(id, req));
     }
 
-    // DELETE /contas/{id} -> exclusão lógica
     @DeleteMapping("/contas/{id}")
     public ResponseEntity<Void> remover(@PathVariable Long id) {
         contaService.excluirLogico(id);
