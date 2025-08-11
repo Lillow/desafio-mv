@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,7 +22,6 @@ import br.com.desafio.celula_financeiro_controladoria.domain.entity.Endereco;
 import br.com.desafio.celula_financeiro_controladoria.domain.entity.Movimento;
 import br.com.desafio.celula_financeiro_controladoria.domain.entity.cliente.Cliente;
 import br.com.desafio.celula_financeiro_controladoria.domain.enums.TipoMovimento;
-import br.com.desafio.celula_financeiro_controladoria.domain.repository.ContaRepository;
 import br.com.desafio.celula_financeiro_controladoria.domain.repository.EnderecoRepository;
 import br.com.desafio.celula_financeiro_controladoria.domain.repository.MovimentoRepository;
 import br.com.desafio.celula_financeiro_controladoria.domain.repository.cliente.ClienteRepository;
@@ -32,9 +32,14 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class RelatorioService {
 
-        private final ClienteRepository clienteRepo;
-        private final EnderecoRepository enderecoRepo;
-        private final MovimentoRepository movimentoRepo;
+        @Autowired
+        private ClienteRepository clienteRepo;
+
+        @Autowired
+        private EnderecoRepository enderecoRepo;
+
+        @Autowired
+        private MovimentoRepository movimentoRepo;
 
         @Transactional(readOnly = true)
         public RelatorioSaldoClienteDTO saldoCliente(Long clienteId) {

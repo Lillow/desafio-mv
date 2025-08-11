@@ -2,6 +2,7 @@ package br.com.desafio.celula_financeiro_controladoria.domain.service;
 
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import br.com.desafio.celula_financeiro_controladoria.domain.entity.cliente.Cliente;
@@ -17,9 +18,14 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ClienteService {
 
-    private final ClienteRepository clienteRepo;
-    private final ClientePFRepository clientePFRepo;
-    private final ClientePJRepository clientePJRepo;
+    @Autowired
+    private ClienteRepository clienteRepo;
+
+    @Autowired
+    private ClientePFRepository clientePFRepo;
+
+    @Autowired
+    private ClientePJRepository clientePJRepo;
 
     // ---------- Comuns ----------
     @Transactional(readOnly = true)

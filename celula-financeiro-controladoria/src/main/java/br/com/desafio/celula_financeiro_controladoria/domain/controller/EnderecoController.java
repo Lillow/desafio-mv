@@ -2,6 +2,7 @@ package br.com.desafio.celula_financeiro_controladoria.domain.controller;
 
 import java.net.URI;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -23,7 +24,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class EnderecoController {
 
-    private final EnderecoService service;
+    @Autowired
+    private EnderecoService service;
 
     @PostMapping("/clientes/{clienteId}/enderecos")
     public ResponseEntity<Endereco> criar(@PathVariable Long clienteId,
