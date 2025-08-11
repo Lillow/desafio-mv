@@ -55,4 +55,5 @@ BigDecimal total = call.executeFunction(BigDecimal.class, Map.of(
 - Preparado para Strategy no cálculo de taxas
 
 ## 👨‍💻 Autor
+- [Danillo Silva](https://github.com/Lillow)
 Projeto desenvolvido para desafio em processo seletivo na MV.
