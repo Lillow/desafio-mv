@@ -1,0 +1,125 @@
+-- =====================================================================
+-- Package: PKG_FINANCEIRO
+-- Objetivo:
+--   - registrar movimentações na tabela MOVIMENTO
+--   - calcular a taxa cobrada pela empresa por cliente/período
+-- Regras de precificação por janela de 30 dias (a partir do created_at do cliente):
+--   1..10 movs => 1.00 por movimentação
+--   11..20 movs => 0.75 por movimentação
+--   >20 movs    => 0.50 por movimentação
+-- =====================================================================
+
+CREATE OR REPLACE PACKAGE PKG_FINANCEIRO AS
+
+  PROCEDURE REGISTRAR_MOV (
+    P_CONTA_ID IN NUMBER,
+    P_TIPO     IN VARCHAR2,  -- 'CREDITO' | 'DEBITO'
+    P_VALOR    IN NUMBER,
+    P_ORIGEM   IN VARCHAR2,
+    P_DESC     IN VARCHAR2
+  );
+
+  FUNCTION CALCULAR_TAXA_CLIENTE (
+    P_CLIENTE_ID IN NUMBER,
+    P_INICIO     IN DATE,
+    P_FIM        IN DATE
+  ) RETURN NUMBER;
+
+END PKG_FINANCEIRO;
+/
+SHOW ERRORS PACKAGE PKG_FINANCEIRO
+/
+
+CREATE OR REPLACE PACKAGE BODY PKG_FINANCEIRO AS
+
+  PROCEDURE REGISTRAR_MOV (
+    P_CONTA_ID IN NUMBER,
+    P_TIPO     IN VARCHAR2,
+    P_VALOR    IN NUMBER,
+    P_ORIGEM   IN VARCHAR2,
+    P_DESC     IN VARCHAR2
+  ) IS
+  BEGIN
+    INSERT INTO MOVIMENTO (ID, ATIVO, CREATED_AT, UPDATED_AT, DATA_HORA, DESCRICAO, ORIGEM, TIPO, VALOR, CONTA_ID)
+    VALUES (
+      SEQ_MOVIMENTO.NEXTVAL,
+      1,
+      SYSTIMESTAMP,
+      SYSTIMESTAMP,
+      SYSTIMESTAMP,
+      SUBSTR(P_DESC, 1, 200),
+      SUBSTR(P_ORIGEM, 1, 60),
+      CASE UPPER(P_TIPO)
+        WHEN 'CREDITO' THEN 'CREDITO'
+        WHEN 'D' THEN 'DEBITO'
+        WHEN 'DEBITO' THEN 'DEBITO'
+        WHEN 'C' THEN 'CREDITO'
+        ELSE 'CREDITO'
+      END,
+      P_VALOR,
+      P_CONTA_ID
+    );
+  END REGISTRAR_MOV;
+
+  FUNCTION CALCULAR_TAXA_CLIENTE (
+    P_CLIENTE_ID IN NUMBER,
+    P_INICIO     IN DATE,
+    P_FIM        IN DATE
+  ) RETURN NUMBER IS
+    CURSOR C_MOVS IS
+      SELECT M.DATA_HORA
+      FROM MOVIMENTO M
+      JOIN CONTA C ON C.ID = M.CONTA_ID
+      WHERE C.CLIENTE_ID = P_CLIENTE_ID
+        AND M.DATA_HORA BETWEEN P_INICIO AND (P_FIM + 0.9999884259); -- até 23:59:59
+
+    V_QTD_POR_JANELA  SYS.ODCINUMBERLIST := SYS.ODCINUMBERLIST();
+    V_CREATED_AT      TIMESTAMP WITH TIME ZONE;
+    V_D0              DATE;
+    V_IDX             NUMBER;
+    V_TOTAL           NUMBER := 0;
+  BEGIN
+    SELECT CREATED_AT INTO V_CREATED_AT
+      FROM CLIENTE WHERE ID = P_CLIENTE_ID;
+
+    V_D0 := CAST(V_CREATED_AT AT LOCAL AS DATE);
+
+    FOR R IN C_MOVS LOOP
+      V_IDX := TRUNC( (TRUNC(CAST(R.DATA_HORA AS DATE)) - TRUNC(V_D0)) / 30 );
+      IF V_IDX < 0 THEN V_IDX := 0; END IF;
+
+      IF V_QTD_POR_JANELA.COUNT < V_IDX + 1 THEN
+        V_QTD_POR_JANELA.EXTEND(V_IDX + 1 - V_QTD_POR_JANELA.COUNT);
+      END IF;
+
+      IF V_QTD_POR_JANELA(V_IDX + 1) IS NULL THEN
+        V_QTD_POR_JANELA(V_IDX + 1) := 0;
+      END IF;
+
+      V_QTD_POR_JANELA(V_IDX + 1) := V_QTD_POR_JANELA(V_IDX + 1) + 1;
+    END LOOP;
+
+    FOR I IN 1 .. V_QTD_POR_JANELA.COUNT LOOP
+      IF V_QTD_POR_JANELA(I) IS NULL THEN
+        CONTINUE;
+      END IF;
+
+      IF V_QTD_POR_JANELA(I) <= 10 THEN
+        V_TOTAL := V_TOTAL + (V_QTD_POR_JANELA(I) * 1.00);
+      ELSIF V_QTD_POR_JANELA(I) <= 20 THEN
+        V_TOTAL := V_TOTAL + (V_QTD_POR_JANELA(I) * 0.75);
+      ELSE
+        V_TOTAL := V_TOTAL + (V_QTD_POR_JANELA(I) * 0.50);
+      END IF;
+    END LOOP;
+
+    RETURN ROUND(V_TOTAL, 2);
+  EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+      RETURN 0;
+  END CALCULAR_TAXA_CLIENTE;
+
+END PKG_FINANCEIRO;
+/
+SHOW ERRORS PACKAGE BODY PKG_FINANCEIRO
+/
