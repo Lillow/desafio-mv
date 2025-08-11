@@ -27,7 +27,6 @@ public class ClienteService {
     @Autowired
     private ClientePJRepository clientePJRepo;
 
-    // ---------- Comuns ----------
     @Transactional(readOnly = true)
     public Cliente buscarPorId(Long id) {
         return clienteRepo.findById(id)
@@ -43,7 +42,6 @@ public class ClienteService {
     public void inativarCliente(Long id) {
         Cliente db = buscarPorId(id);
         db.setAtivo(false);
-        // se quiser garantir flush imediato:
         clienteRepo.save(db);
     }
 
@@ -78,7 +76,7 @@ public class ClienteService {
     // ---------- PJ ----------
     @Transactional
     public ClientePJ salvarPJ(ClientePJ in) {
-        in.setId(null); // garante insert
+        in.setId(null);
         return clientePJRepo.save(in);
     }
 
@@ -102,40 +100,11 @@ public class ClienteService {
         return clientePJRepo.save(db);
     }
 
-    // ---------- Atualização genérica (se quiser manter) ----------
-    @Transactional
-    public Cliente atualizar(Cliente in) {
-        Cliente db = clienteRepo.findById(in.getId())
-                .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado"));
-
-        // se PF, não permitir trocar CPF
-        if (db instanceof ClientePF pfDb && in instanceof ClientePF pfIn) {
-            if (pfIn.getCpf() != null && !pfIn.getCpf().equals(pfDb.getCpf())) {
-                throw new IllegalArgumentException("CPF não pode ser alterado");
-            }
-            pfDb.setDataNasc(pfIn.getDataNasc());
-            pfDb.setRg(pfIn.getRg());
-        }
-
-        // se PJ, não permitir trocar CNPJ
-        if (db instanceof ClientePJ pjDb && in instanceof ClientePJ pjIn) {
-            if (pjIn.getCnpj() != null && !pjIn.getCnpj().equals(pjDb.getCnpj())) {
-                throw new IllegalArgumentException("CNPJ não pode ser alterado");
-            }
-            pjDb.setRazaoSocial(pjIn.getRazaoSocial());
-            pjDb.setInscEstadual(pjIn.getInscEstadual());
-        }
-
-        copiarCamposEditaveis(db, in);
-        return clienteRepo.save(db);
-    }
-
     // ---------- helpers ----------
     private void copiarCamposEditaveis(Cliente destino, Cliente origem) {
         destino.setNome(origem.getNome());
         destino.setEmail(origem.getEmail());
         destino.setTelefone(origem.getTelefone());
-        // NÃO mexe em: id, createdAt, updatedAt (gerenciados), ativo (salvo por
-        // inativação)
+
     }
 }
