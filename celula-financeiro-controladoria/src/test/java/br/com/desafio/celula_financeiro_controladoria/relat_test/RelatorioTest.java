@@ -269,9 +269,6 @@ class RelatorioTest {
         var c2 = novoClienteComConta("Cliente B", "22222222222");
         var conta2 = c2.conta();
 
-        // C3 sem movimentos -> 0
-        var c3 = novoClienteComConta("Cliente C", "33333333333");
-
         var from = LocalDate.now().minusDays(2);
         var to = LocalDate.now().plusDays(2);
 
