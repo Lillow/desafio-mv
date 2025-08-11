@@ -1,4 +1,4 @@
-package br.com.desafio.celula_financeiro_controladoria.infra;
+package br.com.desafio.celula_financeiro_controladoria.domain.infra;
 
 import java.math.BigDecimal;
 import java.sql.Types;
